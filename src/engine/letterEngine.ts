@@ -18,6 +18,9 @@ function getBenefitLabel(bt: BenefitType): string {
     case 'oldAge_treaty': return 'קצבת אזרח ותיק - מדינת אמנה';
     case 'oldAge_usa': return 'קצבת אזרח ותיק - ארה"ב';
     case 'specialOldAge': return 'גמלה מיוחדת לאזרח ותיק (גמ"ז)';
+    case 'survivors_noTreaty': return 'קצבת שאירים - מדינה ללא אמנה';
+    case 'survivors_treaty': return 'קצבת שאירים - מדינת אמנה';
+    case 'survivors_usa': return 'קצבת שאירים - ארה"ב';
   }
 }
 

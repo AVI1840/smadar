@@ -238,6 +238,73 @@ export function determineActionSpecialOldAge(): ActionType {
 }
 
 // ============================================================
+// STEP 4g: Survivors - No Treaty (not USA)
+// ============================================================
+
+export function determineActionSurvivorsNoTreaty(input: ClaimantInput): ActionType {
+  const elig = input.survivorsEligibility;
+  if (!elig) return 'NotEligible';
+
+  // Basic condition: deceased was Israeli resident at time of death
+  if (!elig.deceasedWasResident) return 'NotEligible';
+
+  // Remarried widow - 3 months only
+  if (elig.survivorType === 'remarried_widow') return 'ThreeMonthLimit';
+
+  // Check unlimited conditions
+  if (elig.deceasedInsuranceMonths >= 144) {
+    // Widow: age 50+
+    if (elig.survivorType === 'widow' && elig.survivorAge >= 50) return 'UnlimitedApproved';
+
+    // Widower: age 50+ AND has child
+    if (elig.survivorType === 'widower' && elig.survivorAge >= 50 && elig.hasChildWithSurvivor) return 'UnlimitedApproved';
+
+    // Child: under 18, with parent over 50
+    if (elig.survivorType === 'child') {
+      if ((elig.childAge ?? 99) < 18 && elig.childWithParentOver50) return 'UnlimitedApproved';
+      // Child over 18 or without parent over 50 - 3 months only
+      return 'ThreeMonthLimit';
+    }
+  }
+
+  // Check 36-month condition: in 12 months before death, deceased or survivor was in Israel
+  if (elig.deceasedOrSurvivorInIsrael12Months) return 'ThirtySixMonthLimit';
+
+  // Default: 3 months only (section 324)
+  return 'ThreeMonthLimit';
+}
+
+// ============================================================
+// STEP 4h: Survivors - Treaty
+// ============================================================
+
+export function determineActionSurvivorsTreaty(input: ClaimantInput): ActionType {
+  const elig = input.survivorsEligibility;
+  if (!elig) return 'NotEligible';
+
+  // Treaty country: eligible per law = continues unlimited
+  if (elig.deceasedWasResident || elig.deceasedCompletedAkshara) return 'UnlimitedApproved';
+
+  return 'NotEligible';
+}
+
+// ============================================================
+// STEP 4i: Survivors - USA
+// ============================================================
+
+export function determineActionSurvivorsUSA(input: ClaimantInput): ActionType {
+  const elig = input.survivorsEligibility;
+  if (!elig) return 'NotEligible';
+
+  // USA: deceased must have been Israeli resident AND completed akshara
+  if (!elig.deceasedWasResident) return 'NotEligible';
+  if (!elig.deceasedCompletedAkshara) return 'NotEligible';
+
+  // If deceased completed akshara - unlimited in USA
+  return 'UnlimitedApproved';
+}
+
+// ============================================================
 // STEP 5: Tag months
 // ============================================================
 
@@ -374,6 +441,33 @@ export function tagMonths(
               ruleRef = 'תדריך גמ"ז - שהות בחו"ל';
             } else {
               status = 'Approved';
+            }
+          }
+        }
+        break;
+      }
+
+      case 'ThirtySixMonthLimit': {
+        // Survivors 36 months: first 3 months approved, then up to 36 additional months
+        const touchedByAny = allCrossingsAfter24h.some(c => crossingTouchesMonth(c, calendarYear, m));
+        if (!touchedByAny) {
+          status = 'Approved';
+        } else {
+          if (allCrossingsAfter24h.length > 0) {
+            const firstDep = new Date(allCrossingsAfter24h[0].departureDate);
+            const depMonth = firstDep.getMonth();
+            const depYear = firstDep.getFullYear();
+            const monthsSinceDep = (calendarYear - depYear) * 12 + (m - depMonth);
+            if (monthsSinceDep >= 0 && monthsSinceDep <= 39) { // 3 + 36 = 39
+              status = 'Approved';
+              reason = monthsSinceDep <= 3
+                ? 'במסגרת 3 חודשים ראשונים (סעיף 324)'
+                : `חודש ${monthsSinceDep - 3} מתוך 36 חודשים נוספים`;
+              ruleRef = 'סעיף 324 לחוק + תדריך שאירים 8.5';
+            } else {
+              status = 'Disqualified';
+              reason = 'חריגה מ-39 חודשים מותרים (3+36)';
+              ruleRef = 'תדריך שאירים 8.5.2.2 סעיף ו';
             }
           }
         }
@@ -581,6 +675,33 @@ export function runAudit(input: ClaimantInput): AuditResult {
       });
       break;
 
+    case 'survivors_noTreaty':
+      actionType = determineActionSurvivorsNoTreaty(input);
+      trace.push({
+        step: stepNum, ruleId: 'B02',
+        description: 'קביעת סף - קצבת שאירים ללא אמנה',
+        result: `${actionType}`,
+      });
+      break;
+
+    case 'survivors_treaty':
+      actionType = determineActionSurvivorsTreaty(input);
+      trace.push({
+        step: stepNum, ruleId: 'B02',
+        description: 'קביעת סף - קצבת שאירים מדינת אמנה',
+        result: `${actionType}`,
+      });
+      break;
+
+    case 'survivors_usa':
+      actionType = determineActionSurvivorsUSA(input);
+      trace.push({
+        step: stepNum, ruleId: 'B02',
+        description: 'קביעת סף - קצבת שאירים ארה"ב',
+        result: `${actionType}`,
+      });
+      break;
+
     default:
       actionType = 'NotEligible';
       trace.push({
@@ -610,6 +731,25 @@ export function runAudit(input: ClaimantInput): AuditResult {
     });
   }
 
+  // --- Step 7: Secondary benefit (e.g., old-age + income supplement) ---
+  let secondaryResult: AuditResult['secondaryResult'] = undefined;
+  if (input.secondBenefitType) {
+    const secondInput = { ...input, benefitType: input.secondBenefitType, secondBenefitType: undefined };
+    const secResult = runAudit(secondInput);
+    secondaryResult = {
+      benefitType: input.secondBenefitType,
+      actionType: secResult.actionType,
+      monthResults: secResult.monthResults,
+      decisionTrace: secResult.decisionTrace,
+    };
+    stepNum++;
+    trace.push({
+      step: stepNum, ruleId: 'E01',
+      description: `בדיקת קצבה משנית (${input.secondBenefitType})`,
+      result: `${secResult.actionType}`,
+    });
+  }
+
   return {
     benefitType: input.benefitType,
     rawCrossingsCount: input.crossings.length,
@@ -621,5 +761,6 @@ export function runAudit(input: ClaimantInput): AuditResult {
     warnings,
     decisionTrace: trace,
     spouseResult,
+    secondaryResult: secondaryResult || undefined,
   };
 }

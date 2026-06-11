@@ -26,6 +26,9 @@ function getBenefitLabel(bt: BenefitType): string {
     case 'oldAge_treaty': return 'קצבת זקנה - מדינת אמנה';
     case 'oldAge_usa': return 'קצבת זקנה - ארה"ב';
     case 'specialOldAge': return 'גמ"ז';
+    case 'survivors_noTreaty': return 'שאירים - ללא אמנה';
+    case 'survivors_treaty': return 'שאירים - מדינת אמנה';
+    case 'survivors_usa': return 'שאירים - ארה"ב';
   }
 }
 

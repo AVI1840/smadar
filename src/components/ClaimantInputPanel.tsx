@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ClaimantInput, TravelCrossing, ExemptionType, BenefitType, OldAgeEligibility, OldAgeInsuredStatus, SpouseInfo, TREATY_COUNTRIES } from '../types/types';
+import { ClaimantInput, TravelCrossing, ExemptionType, BenefitType, OldAgeEligibility, OldAgeInsuredStatus, SpouseInfo, TREATY_COUNTRIES, SurvivorsEligibility, SurvivorType } from '../types/types';
 
 interface Props {
   onRunAudit: (input: ClaimantInput) => void;
@@ -12,6 +12,15 @@ const BENEFIT_OPTIONS: { value: BenefitType; label: string }[] = [
   { value: 'oldAge_treaty', label: 'קצבת זקנה - מדינת אמנה' },
   { value: 'oldAge_usa', label: 'קצבת זקנה - ארה"ב' },
   { value: 'specialOldAge', label: 'גמ"ז - גמלה מיוחדת' },
+  { value: 'survivors_noTreaty', label: 'קצבת שאירים - ללא אמנה' },
+  { value: 'survivors_treaty', label: 'קצבת שאירים - מדינת אמנה' },
+  { value: 'survivors_usa', label: 'קצבת שאירים - ארה"ב' },
+];
+
+const SECONDARY_OPTIONS: { value: BenefitType | ''; label: string }[] = [
+  { value: '', label: 'ללא קצבה משנית' },
+  { value: 'incomeAssurance_retirement', label: 'השלמת הכנסה - גיל פרישה' },
+  { value: 'incomeAssurance_preRetirement', label: 'השלמת הכנסה - טרום פרישה' },
 ];
 
 export function ClaimantInputPanel({ onRunAudit }: Props) {
@@ -19,6 +28,7 @@ export function ClaimantInputPanel({ onRunAudit }: Props) {
   const [idNumber, setIdNumber] = useState('');
   const [calendarYear, setCalendarYear] = useState(new Date().getFullYear());
   const [benefitType, setBenefitType] = useState<BenefitType>('incomeAssurance_retirement');
+  const [secondBenefitType, setSecondBenefitType] = useState<BenefitType | ''>('');
   const [crossings, setCrossings] = useState<TravelCrossing[]>([]);
   const [destinationCountry, setDestinationCountry] = useState('');
 
@@ -30,6 +40,17 @@ export function ClaimantInputPanel({ onRunAudit }: Props) {
   const [fiveYears, setFiveYears] = useState(true);
   const [receivingPension, setReceivingPension] = useState(true);
   const [isResident, setIsResident] = useState(false);
+
+  // Survivors fields
+  const [survivorType, setSurvivorType] = useState<SurvivorType>('widow');
+  const [deceasedWasResident, setDeceasedWasResident] = useState(true);
+  const [deceasedInsuranceMonths, setDeceasedInsuranceMonths] = useState(0);
+  const [deceasedCompletedAkshara, setDeceasedCompletedAkshara] = useState(true);
+  const [survivorAge, setSurvivorAge] = useState(55);
+  const [hasChildWithSurvivor, setHasChildWithSurvivor] = useState(false);
+  const [childAge, setChildAge] = useState(10);
+  const [childWithParentOver50, setChildWithParentOver50] = useState(true);
+  const [deceasedOrSurvivorInIsrael12, setDeceasedOrSurvivorInIsrael12] = useState(true);
 
   // Spouse
   const [hasSpouse, setHasSpouse] = useState(false);
@@ -66,6 +87,18 @@ export function ClaimantInputPanel({ onRunAudit }: Props) {
       isResidentDespiteAbroad: isResident,
     } : undefined;
 
+    const survivorsEligibility: SurvivorsEligibility | undefined = benefitType.startsWith('survivors') ? {
+      survivorType,
+      deceasedWasResident,
+      deceasedInsuranceMonths,
+      deceasedCompletedAkshara,
+      survivorAge,
+      hasChildWithSurvivor,
+      childAge: survivorType === 'child' ? childAge : undefined,
+      childWithParentOver50: survivorType === 'child' ? childWithParentOver50 : undefined,
+      deceasedOrSurvivorInIsrael12Months: deceasedOrSurvivorInIsrael12,
+    } : undefined;
+
     const spouse: SpouseInfo | undefined = hasSpouse ? {
       hasSpouse: true,
       spouseAbroad,
@@ -79,15 +112,19 @@ export function ClaimantInputPanel({ onRunAudit }: Props) {
       idNumber: idNumber.trim(),
       calendarYear,
       benefitType,
+      secondBenefitType: secondBenefitType || undefined,
       crossings,
       oldAgeEligibility,
+      survivorsEligibility,
       spouse,
       destinationCountry,
     });
   }
 
   const isOldAge = benefitType.startsWith('oldAge');
-  const isTreaty = benefitType === 'oldAge_treaty';
+  const isSurvivors = benefitType.startsWith('survivors');
+  const isTreaty = benefitType === 'oldAge_treaty' || benefitType === 'survivors_treaty';
+  const showSecondary = benefitType.startsWith('oldAge') || benefitType.startsWith('survivors');
   const isValid = fullName.trim() && idNumber.trim() && crossings.length > 0 &&
     crossings.every(c => c.departureDate && c.returnDate);
 
@@ -129,6 +166,16 @@ export function ClaimantInputPanel({ onRunAudit }: Props) {
               className="w-full border border-gray-300 rounded-md px-3 py-2 text-right text-sm" dir="rtl">
               <option value="">בחר מדינה</option>
               {TREATY_COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+        )}
+
+        {showSecondary && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1 text-right">קצבה משנית (אופציונלי)</label>
+            <select value={secondBenefitType} onChange={e => setSecondBenefitType(e.target.value as BenefitType | '')}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-right text-sm" dir="rtl">
+              {SECONDARY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
         )}
@@ -176,6 +223,70 @@ export function ClaimantInputPanel({ onRunAudit }: Props) {
               <label className="flex items-center justify-end gap-2 text-xs text-blue-700 cursor-pointer">
                 <span>תושב/ת ישראל למרות שהות בחו"ל</span>
                 <input type="checkbox" checked={isResident} onChange={e => setIsResident(e.target.checked)} className="rounded" />
+              </label>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Survivors Eligibility */}
+      {isSurvivors && (
+        <div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-md">
+          <h3 className="text-sm font-bold text-purple-800 mb-2 text-right">נתוני זכאות - שאירים</h3>
+          <div className="space-y-2">
+            <div>
+              <label className="block text-xs text-purple-700 mb-1 text-right">סוג שאיר</label>
+              <select value={survivorType} onChange={e => setSurvivorType(e.target.value as SurvivorType)}
+                className="w-full border border-purple-300 rounded px-2 py-1 text-sm text-right" dir="rtl">
+                <option value="widow">אלמנה</option>
+                <option value="widower">אלמן</option>
+                <option value="child">ילד שאיר</option>
+                <option value="remarried_widow">אלמנה שנישאה</option>
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-xs text-purple-700 mb-1 text-right">חודשי ביטוח המנוח/ה</label>
+                <input type="number" value={deceasedInsuranceMonths} onChange={e => setDeceasedInsuranceMonths(Number(e.target.value))}
+                  className="w-full border border-purple-300 rounded px-2 py-1 text-sm text-right" />
+              </div>
+              <div>
+                <label className="block text-xs text-purple-700 mb-1 text-right">גיל האלמן/ה בצאתו/ה</label>
+                <input type="number" value={survivorAge} onChange={e => setSurvivorAge(Number(e.target.value))}
+                  className="w-full border border-purple-300 rounded px-2 py-1 text-sm text-right" />
+              </div>
+            </div>
+            {survivorType === 'child' && (
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs text-purple-700 mb-1 text-right">גיל הילד</label>
+                  <input type="number" value={childAge} onChange={e => setChildAge(Number(e.target.value))}
+                    className="w-full border border-purple-300 rounded px-2 py-1 text-sm text-right" />
+                </div>
+                <label className="flex items-center justify-end gap-2 text-xs text-purple-700 cursor-pointer self-end pb-1">
+                  <span>עם הורה בן 50+</span>
+                  <input type="checkbox" checked={childWithParentOver50} onChange={e => setChildWithParentOver50(e.target.checked)} className="rounded" />
+                </label>
+              </div>
+            )}
+            <div className="space-y-1">
+              <label className="flex items-center justify-end gap-2 text-xs text-purple-700 cursor-pointer">
+                <span>המנוח/ה היה/תה תושב/ת ישראל בעת הפטירה</span>
+                <input type="checkbox" checked={deceasedWasResident} onChange={e => setDeceasedWasResident(e.target.checked)} className="rounded" />
+              </label>
+              <label className="flex items-center justify-end gap-2 text-xs text-purple-700 cursor-pointer">
+                <span>המנוח/ה השלים/ה תקופת אכשרה</span>
+                <input type="checkbox" checked={deceasedCompletedAkshara} onChange={e => setDeceasedCompletedAkshara(e.target.checked)} className="rounded" />
+              </label>
+              {survivorType === 'widower' && (
+                <label className="flex items-center justify-end gap-2 text-xs text-purple-700 cursor-pointer">
+                  <span>יש ילד עם האלמן</span>
+                  <input type="checkbox" checked={hasChildWithSurvivor} onChange={e => setHasChildWithSurvivor(e.target.checked)} className="rounded" />
+                </label>
+              )}
+              <label className="flex items-center justify-end gap-2 text-xs text-purple-700 cursor-pointer">
+                <span>ב-12 חודשים לפני הפטירה - המנוח או שאיר היה בישראל</span>
+                <input type="checkbox" checked={deceasedOrSurvivorInIsrael12} onChange={e => setDeceasedOrSurvivorInIsrael12(e.target.checked)} className="rounded" />
               </label>
             </div>
           </div>

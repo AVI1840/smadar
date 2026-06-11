@@ -5,7 +5,10 @@ export type BenefitType =
   | 'oldAge_noTreaty'               // קצבת זקנה - מדינה ללא אמנה (לא ארה"ב)
   | 'oldAge_treaty'                 // קצבת זקנה - מדינת אמנה
   | 'oldAge_usa'                    // קצבת זקנה - ארה"ב
-  | 'specialOldAge';                // גמלה מיוחדת (גמ"ז)
+  | 'specialOldAge'                 // גמלה מיוחדת (גמ"ז)
+  | 'survivors_noTreaty'            // קצבת שאירים - מדינה ללא אמנה
+  | 'survivors_treaty'              // קצבת שאירים - מדינת אמנה
+  | 'survivors_usa';                // קצבת שאירים - ארה"ב
 
 // --- Exemptions ---
 export type ExemptionType = 'None' | 'Mourning' | 'Hajj' | 'Medical' | 'Employer';
@@ -19,7 +22,8 @@ export type ActionType =
   | 'ThreeMonthLimit'               // 3 חודשים בלבד (עקרת בית / גמ"ז)
   | 'OneMonthLimit'                 // חודש אחד בלבד (גמ"ז)
   | 'UnlimitedApproved'             // ללא הגבלת זמן (אמנה / ארה"ב / 25 שנים / 144 חודשים)
-  | 'NotEligible';                  // אין זכאות כלל
+  | 'NotEligible'                   // אין זכאות כלל
+  | 'ThirtySixMonthLimit';           // 36 חודשים (שאירים)
 
 export type MonthStatus = 'Approved' | 'Disqualified' | 'ReviewRequired';
 
@@ -68,15 +72,33 @@ export interface SpouseInfo {
   spouseMonthsAbroad?: number;     // מספר חודשים בחו"ל
 }
 
-// --- Claimant Input ---
+// --- Survivors Eligibility ---
+export type SurvivorType = 'widow' | 'widower' | 'child' | 'remarried_widow';
+
+export interface SurvivorsEligibility {
+  survivorType: SurvivorType;
+  deceasedWasResident: boolean;          // המנוח היה תושב ישראל בעת פטירתו
+  deceasedInsuranceMonths: number;       // חודשי ביטוח של המנוח/ה
+  deceasedCompletedAkshara: boolean;     // המנוח השלים תקופת אכשרה
+  survivorAge: number;                   // גיל האלמן/ה בצאתו לחו"ל
+  hasChildWithSurvivor: boolean;         // יש ילד עם האלמן (רלוונטי לאלמן)
+  childAge?: number;                     // גיל הילד (רלוונטי לילד שאיר)
+  childWithParentOver50?: boolean;       // הילד עם הורה בן 50+
+  deceasedOrSurvivorInIsrael12Months: boolean; // ב-12 חודשים לפני הפטירה - המנוח או שאיר בישראל
+}
+
+// --- Multi-benefit selection ---
 export interface ClaimantInput {
   fullName: string;
   idNumber: string;
   calendarYear: number;
   benefitType: BenefitType;
+  secondBenefitType?: BenefitType;       // אפשרות לבחור קצבה נוספת (זקנה + השלמת הכנסה)
   crossings: TravelCrossing[];
   // Old-age specific
   oldAgeEligibility?: OldAgeEligibility;
+  // Survivors specific
+  survivorsEligibility?: SurvivorsEligibility;
   // Spouse
   spouse?: SpouseInfo;
   // Destination country (for treaty/USA detection)
@@ -113,6 +135,13 @@ export interface AuditResult {
   decisionTrace: DecisionTraceEntry[];
   // Spouse result
   spouseResult?: SpouseAuditResult;
+  // Secondary benefit (e.g. income supplement alongside old-age)
+  secondaryResult?: {
+    benefitType: BenefitType;
+    actionType: ActionType;
+    monthResults: MonthResult[];
+    decisionTrace: DecisionTraceEntry[];
+  };
 }
 
 export interface SpouseAuditResult {
