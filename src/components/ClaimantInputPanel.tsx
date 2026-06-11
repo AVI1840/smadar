@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ClaimantInput, TravelCrossing, ExemptionType, BenefitType, OldAgeEligibility, OldAgeInsuredStatus, SpouseInfo, TREATY_COUNTRIES, SurvivorsEligibility, SurvivorType, UserBenefitChoice } from '../types/types';
 import { resolveBenefitType, getCountryStatus } from '../engine/auditEngine';
+import { ALL_COUNTRIES } from '../data/countries';
 
 interface Props {
   onRunAudit: (input: ClaimantInput) => void;
@@ -163,22 +164,29 @@ export function ClaimantInputPanel({ onRunAudit }: Props) {
         {needsCountry && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1 text-right">מדינת יעד</label>
-            <input
-              type="text"
-              list="countries-list"
-              value={destinationCountry}
-              onChange={e => setDestinationCountry(e.target.value)}
-              placeholder="הקלד שם מדינה..."
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-right text-sm focus:ring-2 focus:ring-[#1E3A5F] outline-none" dir="rtl"
-            />
-            <datalist id="countries-list">
-              {[...TREATY_COUNTRIES, 'ארה"ב', 'קנדה', 'אוסטרליה', 'תאילנד', 'הודו', 'טורקיה', 'יוון', 'ספרד', 'פורטוגל', 'ברזיל', 'מקסיקו', 'דרום אפריקה', 'סין', 'יפן'].map(c => (
-                <option key={c} value={c} />
-              ))}
-            </datalist>
+            <div className="relative">
+              <input
+                type="text"
+                value={destinationCountry}
+                onChange={e => setDestinationCountry(e.target.value)}
+                placeholder="התחל להקליד שם מדינה..."
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-right text-sm focus:ring-2 focus:ring-[#1E3A5F] outline-none" dir="rtl"
+                list="country-autocomplete"
+              />
+              <datalist id="country-autocomplete">
+                {ALL_COUNTRIES.map(c => (
+                  <option key={c.name} value={c.name}>
+                    {c.treaty ? '🟢 אמנה' : c.usa ? '🔵 ארה"ב' : ''}
+                  </option>
+                ))}
+              </datalist>
+            </div>
             {destinationCountry && (
-              <div className={`mt-1 px-2 py-1 rounded text-xs border ${countryStatus.cls}`}>
+              <div className={`mt-1.5 px-3 py-1.5 rounded-md text-xs font-medium border ${countryStatus.cls}`}>
                 {countryStatus.label}
+                {ALL_COUNTRIES.find(c => c.name === destinationCountry)?.treaty && (
+                  <span className="mr-2 font-normal">(המשך תשלום ללא הגבלת זמן)</span>
+                )}
               </div>
             )}
           </div>

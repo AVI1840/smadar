@@ -85,9 +85,9 @@ export function resolveBenefitType(userChoice: string, destinationCountry: strin
 
 export function getCountryStatus(country: string): { label: string; cls: string } {
   if (!country) return { label: '', cls: '' };
-  if (isUSA(country)) return { label: 'ארה"ב - הסכם ידידות מסחר וספנות', cls: 'text-blue-700 bg-blue-50 border-blue-200' };
-  if (isTreatyCountry(country)) return { label: `מדינת אמנה`, cls: 'text-green-700 bg-green-50 border-green-200' };
-  return { label: 'אין אמנה לביטחון סוציאלי', cls: 'text-orange-700 bg-orange-50 border-orange-200' };
+  if (isUSA(country)) return { label: '🔵 ארה"ב - הסכם ידידות מסחר וספנות', cls: 'text-blue-700 bg-blue-50 border-blue-200' };
+  if (isTreatyCountry(country)) return { label: '🟢 מדינת אמנה לביטחון סוציאלי', cls: 'text-green-700 bg-green-50 border-green-200' };
+  return { label: '🟠 אין אמנה לביטחון סוציאלי', cls: 'text-orange-700 bg-orange-50 border-orange-200' };
 }
 
 // ============================================================
