@@ -43,13 +43,51 @@ function crossingFullMonthAbroad(crossing: TravelCrossing, year: number, monthIn
   return dep < monthStart && ret > monthEnd;
 }
 
+// ============================================================
+// COUNTRY DETECTION - Auto-resolve benefit type from destination
+// ============================================================
+
+const USA_NAMES = ['ארה"ב', 'ארצות הברית', 'אמריקה', 'USA', 'United States', 'ארהב'];
+
+export function isUSA(country: string): boolean {
+  if (!country) return false;
+  return USA_NAMES.some(n => country.includes(n));
+}
+
 export function isTreatyCountry(country: string): boolean {
+  if (!country) return false;
   return TREATY_COUNTRIES.includes(country as any);
 }
 
-export function isUSA(country: string): boolean {
-  const usNames = ['ארה"ב', 'ארצות הברית', 'אמריקה', 'USA', 'United States'];
-  return usNames.some(n => country.includes(n));
+export function resolveBenefitType(userChoice: string, destinationCountry: string): BenefitType {
+  // Income assurance types don't depend on country
+  if (userChoice === 'incomeAssurance_retirement') return 'incomeAssurance_retirement';
+  if (userChoice === 'incomeAssurance_preRetirement') return 'incomeAssurance_preRetirement';
+  if (userChoice === 'specialOldAge') return 'specialOldAge';
+
+  // Old-age: depends on country
+  if (userChoice === 'oldAge') {
+    if (isUSA(destinationCountry)) return 'oldAge_usa';
+    if (isTreatyCountry(destinationCountry)) return 'oldAge_treaty';
+    return 'oldAge_noTreaty';
+  }
+
+  // Survivors: depends on country
+  if (userChoice === 'survivors') {
+    if (isUSA(destinationCountry)) return 'survivors_usa';
+    if (isTreatyCountry(destinationCountry)) return 'survivors_treaty';
+    return 'survivors_noTreaty';
+  }
+
+  // Fallback for already-resolved types
+  return userChoice as BenefitType;
+}
+
+export function getCountryStatus(country: string): { label: string; cls: string } {
+  if (!country) return { label: '', cls: '' };
+  if (isUSA(country)) return { label: 'ארה"ב - הסכם ידידות מסחר וספנות', cls: 'text-blue-700 bg-blue-50 border-blue-200' };
+  if (isTreatyCountry(country)) return { label: `מדינת אמנה`, cls: 'text-green-700 bg-green-50 border-green-200' };
+  return { label: 'אין אמנה לביטחון סוציאלי', cls: 'text-orange-700 bg-orange-50 border-orange-200' };
 }
 
 // ============================================================

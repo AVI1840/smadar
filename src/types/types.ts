@@ -1,4 +1,4 @@
-// --- Benefit Types ---
+// --- Benefit Types (simplified for user) ---
 export type BenefitType =
   | 'incomeAssurance_retirement'     // הבטחת הכנסה / השלמת הכנסה - גיל פרישה
   | 'incomeAssurance_preRetirement'  // הבטחת הכנסה - טרום פרישה
@@ -9,6 +9,14 @@ export type BenefitType =
   | 'survivors_noTreaty'            // קצבת שאירים - מדינה ללא אמנה
   | 'survivors_treaty'              // קצבת שאירים - מדינת אמנה
   | 'survivors_usa';                // קצבת שאירים - ארה"ב
+
+// What the user actually selects (high-level category)
+export type UserBenefitChoice =
+  | 'incomeAssurance_retirement'
+  | 'incomeAssurance_preRetirement'
+  | 'oldAge'                         // קצבת זקנה (מדינה תיקבע אוטומטית)
+  | 'specialOldAge'
+  | 'survivors';                     // קצבת שאירים (מדינה תיקבע אוטומטית)
 
 // --- Exemptions ---
 export type ExemptionType = 'None' | 'Mourning' | 'Hajj' | 'Medical' | 'Employer';

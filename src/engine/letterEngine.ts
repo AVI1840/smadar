@@ -155,6 +155,40 @@ export function generateLetter42(input: ClaimantInput, result: AuditResult): str
     L.push('');
   }
 
+  // Secondary benefit result
+  if (result.secondaryResult) {
+    L.push('---');
+    L.push(`קצבה משנית: ${getBenefitLabel(result.secondaryResult.benefitType)}`);
+    L.push('');
+    const secDisqualified = result.secondaryResult.monthResults
+      .filter(m => m.status === 'Disqualified')
+      .map(m => m.monthLabel)
+      .join(', ');
+
+    switch (result.secondaryResult.actionType) {
+      case 'FullyApproved':
+        L.push('השלמת ההכנסה תמשיך להשתלם בחודש היציאה ובחודש החזרה בלבד.');
+        L.push('בחודשים בהם שהית בחו"ל חודש קלנדרי מלא - אין זכאות להשלמת הכנסה.');
+        L.push('בהתאם לסעיף 4 לתקנות הבטחת הכנסה (כללים בדבר יציאה מישראל לגיל פרישה).');
+        break;
+      case 'SelectiveDisallowance':
+        L.push('בהתאם לסעיף 4(ב) לתקנות הבטחת הכנסה, השלמת ההכנסה נשללת');
+        L.push('בגין חודשי הנסיעה החל מהיציאה הרביעית בשנה הקלנדרית.');
+        if (secDisqualified) L.push(`חודשים ללא השלמת הכנסה: ${secDisqualified}.`);
+        break;
+      case 'RetroactiveYearlyDisallowance':
+        L.push('בהתאם לסעיף 4(ג) לתקנות הבטחת הכנסה, השלמת ההכנסה נשללת');
+        L.push('רטרואקטיבית לכלל חודשי השהות בחו"ל באותה שנה קלנדרית.');
+        if (secDisqualified) L.push(`חודשים ללא השלמת הכנסה: ${secDisqualified}.`);
+        break;
+      default:
+        L.push('השלמת ההכנסה אינה משתלמת בתקופת השהות בחו"ל.');
+        if (secDisqualified) L.push(`חודשים ללא השלמת הכנסה: ${secDisqualified}.`);
+        break;
+    }
+    L.push('');
+  }
+
   // Appeal rights
   L.push('---');
   L.push('בידך הזכות להגיש ערעור על החלטה זו בתוך 12 חודשים מיום קבלת הודעה זו');

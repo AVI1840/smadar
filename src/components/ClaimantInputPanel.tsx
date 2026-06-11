@@ -1,33 +1,29 @@
 import { useState } from 'react';
-import { ClaimantInput, TravelCrossing, ExemptionType, BenefitType, OldAgeEligibility, OldAgeInsuredStatus, SpouseInfo, TREATY_COUNTRIES, SurvivorsEligibility, SurvivorType } from '../types/types';
+import { ClaimantInput, TravelCrossing, ExemptionType, BenefitType, OldAgeEligibility, OldAgeInsuredStatus, SpouseInfo, TREATY_COUNTRIES, SurvivorsEligibility, SurvivorType, UserBenefitChoice } from '../types/types';
+import { resolveBenefitType, getCountryStatus } from '../engine/auditEngine';
 
 interface Props {
   onRunAudit: (input: ClaimantInput) => void;
 }
 
-const BENEFIT_OPTIONS: { value: BenefitType; label: string }[] = [
-  { value: 'incomeAssurance_retirement', label: 'הבטחת הכנסה - גיל פרישה' },
+const BENEFIT_OPTIONS: { value: UserBenefitChoice; label: string }[] = [
+  { value: 'incomeAssurance_retirement', label: 'הבטחת הכנסה / השלמת הכנסה - גיל פרישה' },
   { value: 'incomeAssurance_preRetirement', label: 'הבטחת הכנסה - טרום פרישה' },
-  { value: 'oldAge_noTreaty', label: 'קצבת זקנה - מדינה ללא אמנה' },
-  { value: 'oldAge_treaty', label: 'קצבת זקנה - מדינת אמנה' },
-  { value: 'oldAge_usa', label: 'קצבת זקנה - ארה"ב' },
+  { value: 'oldAge', label: 'קצבת אזרח ותיק (זקנה)' },
   { value: 'specialOldAge', label: 'גמ"ז - גמלה מיוחדת' },
-  { value: 'survivors_noTreaty', label: 'קצבת שאירים - ללא אמנה' },
-  { value: 'survivors_treaty', label: 'קצבת שאירים - מדינת אמנה' },
-  { value: 'survivors_usa', label: 'קצבת שאירים - ארה"ב' },
+  { value: 'survivors', label: 'קצבת שאירים' },
 ];
 
 const SECONDARY_OPTIONS: { value: BenefitType | ''; label: string }[] = [
-  { value: '', label: 'ללא קצבה משנית' },
-  { value: 'incomeAssurance_retirement', label: 'השלמת הכנסה - גיל פרישה' },
-  { value: 'incomeAssurance_preRetirement', label: 'השלמת הכנסה - טרום פרישה' },
+  { value: '', label: 'ללא' },
+  { value: 'incomeAssurance_retirement', label: '+ השלמת הכנסה (גיל פרישה)' },
 ];
 
 export function ClaimantInputPanel({ onRunAudit }: Props) {
   const [fullName, setFullName] = useState('');
   const [idNumber, setIdNumber] = useState('');
   const [calendarYear, setCalendarYear] = useState(new Date().getFullYear());
-  const [benefitType, setBenefitType] = useState<BenefitType>('incomeAssurance_retirement');
+  const [userChoice, setUserChoice] = useState<UserBenefitChoice>('incomeAssurance_retirement');
   const [secondBenefitType, setSecondBenefitType] = useState<BenefitType | ''>('');
   const [crossings, setCrossings] = useState<TravelCrossing[]>([]);
   const [destinationCountry, setDestinationCountry] = useState('');
@@ -77,6 +73,8 @@ export function ClaimantInputPanel({ onRunAudit }: Props) {
   }
 
   function handleSubmit() {
+    const benefitType = resolveBenefitType(userChoice, destinationCountry);
+
     const oldAgeEligibility: OldAgeEligibility | undefined = benefitType.startsWith('oldAge') ? {
       insuredStatus,
       yearsResidency,
@@ -121,12 +119,15 @@ export function ClaimantInputPanel({ onRunAudit }: Props) {
     });
   }
 
-  const isOldAge = benefitType.startsWith('oldAge');
-  const isSurvivors = benefitType.startsWith('survivors');
-  const isTreaty = benefitType === 'oldAge_treaty' || benefitType === 'survivors_treaty';
-  const showSecondary = benefitType.startsWith('oldAge') || benefitType.startsWith('survivors');
+  const resolvedType = resolveBenefitType(userChoice, destinationCountry);
+  const isOldAge = resolvedType.startsWith('oldAge');
+  const isSurvivors = resolvedType.startsWith('survivors');
+  const needsCountry = userChoice === 'oldAge' || userChoice === 'survivors';
+  const showSecondary = userChoice === 'oldAge' || userChoice === 'survivors';
+  const countryStatus = getCountryStatus(destinationCountry);
   const isValid = fullName.trim() && idNumber.trim() && crossings.length > 0 &&
-    crossings.every(c => c.departureDate && c.returnDate);
+    crossings.every(c => c.departureDate && c.returnDate) &&
+    (!needsCountry || destinationCountry.trim());
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 h-full overflow-y-auto">
@@ -152,27 +153,40 @@ export function ClaimantInputPanel({ onRunAudit }: Props) {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1 text-right">סוג גמלה</label>
-            <select value={benefitType} onChange={e => setBenefitType(e.target.value as BenefitType)}
+            <select value={userChoice} onChange={e => setUserChoice(e.target.value as UserBenefitChoice)}
               className="w-full border border-gray-300 rounded-md px-3 py-2 text-right text-sm focus:ring-2 focus:ring-[#1E3A5F] outline-none" dir="rtl">
               {BENEFIT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
         </div>
 
-        {isTreaty && (
+        {needsCountry && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1 text-right">מדינת אמנה</label>
-            <select value={destinationCountry} onChange={e => setDestinationCountry(e.target.value)}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-right text-sm" dir="rtl">
-              <option value="">בחר מדינה</option>
-              {TREATY_COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
+            <label className="block text-sm font-medium text-gray-700 mb-1 text-right">מדינת יעד</label>
+            <input
+              type="text"
+              list="countries-list"
+              value={destinationCountry}
+              onChange={e => setDestinationCountry(e.target.value)}
+              placeholder="הקלד שם מדינה..."
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-right text-sm focus:ring-2 focus:ring-[#1E3A5F] outline-none" dir="rtl"
+            />
+            <datalist id="countries-list">
+              {[...TREATY_COUNTRIES, 'ארה"ב', 'קנדה', 'אוסטרליה', 'תאילנד', 'הודו', 'טורקיה', 'יוון', 'ספרד', 'פורטוגל', 'ברזיל', 'מקסיקו', 'דרום אפריקה', 'סין', 'יפן'].map(c => (
+                <option key={c} value={c} />
+              ))}
+            </datalist>
+            {destinationCountry && (
+              <div className={`mt-1 px-2 py-1 rounded text-xs border ${countryStatus.cls}`}>
+                {countryStatus.label}
+              </div>
+            )}
           </div>
         )}
 
         {showSecondary && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1 text-right">קצבה משנית (אופציונלי)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1 text-right">קצבה נוספת</label>
             <select value={secondBenefitType} onChange={e => setSecondBenefitType(e.target.value as BenefitType | '')}
               className="w-full border border-gray-300 rounded-md px-3 py-2 text-right text-sm" dir="rtl">
               {SECONDARY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}

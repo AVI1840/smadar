@@ -114,6 +114,27 @@ export function ResultCalendar({ result }: Props) {
         })}
       </div>
 
+      {/* Secondary benefit result */}
+      {result.secondaryResult && (
+        <div className="mb-4 p-3 bg-indigo-50 border border-indigo-200 rounded-md text-right">
+          <p className="text-xs font-bold text-indigo-800 mb-1">
+            קצבה משנית: {getBenefitLabel(result.secondaryResult.benefitType)}
+          </p>
+          <div className="flex items-center gap-2 justify-end">
+            <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${getActionDisplay(result.secondaryResult.actionType).cls}`}>
+              {getActionDisplay(result.secondaryResult.actionType).label}
+            </span>
+          </div>
+          <div className="mt-2 grid grid-cols-6 gap-1">
+            {result.secondaryResult.monthResults.map(m => (
+              <div key={m.month} className={`text-center rounded px-1 py-0.5 text-[9px] ${m.status === 'Disqualified' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                {m.monthLabel.slice(0, 3)}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Decision Trace */}
       <details className="border-t pt-2">
         <summary className="text-sm font-bold text-gray-700 text-right cursor-pointer">מעקב החלטות ({result.decisionTrace.length} שלבים)</summary>
